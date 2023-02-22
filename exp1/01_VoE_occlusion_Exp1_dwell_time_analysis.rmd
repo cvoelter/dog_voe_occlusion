@@ -1,0 +1,136 @@
+---
+title: ET_VoE_animations: Dwell time analysis
+author: Christoph Voelter
+date: 03/12/2020
+output: html_document
+---
+notes: look at gap AI, 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(tidyverse)
+library(summarytools)
+library(exactRankTests)
+library(ggpubr)
+
+```
+
+### Summary
+
+
+Read Data
+```{r}
+orig.data <- read_csv("data/ET_VoE_occlusion_IA_report.csv")
+
+
+
+demo.data <- read_csv("data/VoE_Occlusion_demographics and counterbalancing.csv")%>%
+  mutate(EDF1=fct_recode(EDF1, Georgia_2="Georgia2", Georgia_1="Georgia1", Cheynna_1="Cheynna1"))%>%
+  separate(EDF1, c("subject", "xx"), sep="_")%>%
+  select(-comment)
+
+
+
+xdata <- orig.data %>%
+  select(Session_Name_, IP_LABEL, IA_LABEL,IA_ID, Trial_Index_, condition, phase, session,  video_file, video_id, video_latency, DATA_FILE,  IA_AREA, IA_AVERAGE_FIX_PUPIL_SIZE,  IA_DWELL_TIME, "IA_DWELL_TIME_%", IA_FIXATION_COUNT, IA_MAX_FIX_PUPIL_SIZE, INTEREST_AREA_FIXATION_SEQUENCE, TRIAL_DWELL_TIME, TRIAL_FIXATION_COUNT, TRIAL_IA_COUNT, TRIAL_TOTAL_VISITED_IA_COUNT )%>%
+  mutate(Session_Name_=fct_recode(Session_Name_, Georgia_2="Georgia2",Georgia_1="Georgia1", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(Session_Name_, c("subject", "session.num"), sep="_")%>%
+    mutate(session.num=fct_recode(as.factor(session.num), "2"="3" ))%>%
+  full_join(demo.data)%>%
+  rename(trial="Trial_Index_")
+  
+
+#checks:
+view(dfSummary(xdata))
+
+
+table(xdata$condition, xdata$subject)
+table(xdata$session.num, xdata$subject)
+table(xdata$condition, xdata$TRIAL_TOTAL_VISITED_IA_COUNT)
+
+```
+
+
+
+Plotting pole data:
+dogs look significantly longer at pole IA in the experimental condition than in the control condition at the end of the video.
+
+End IP
+```{r}
+
+test.IP.end.data <- xdata %>%
+  filter(condition!="hab", IP_LABEL=="IP_End")
+
+
+ggplot(data = test.IP.end.data, aes(x=condition, y=IA_DWELL_TIME))+
+  geom_boxplot(alpha=0.5)+#, outlier.colour = "white")+
+  #geom_point(aes(x=first_target_loc, y=IA_DWELL_TIME, group=IA_LABEL),position_dodge(), alpha=0.5)+
+  facet_wrap(~IA_LABEL)+
+  ylab("Dwell time")+xlab("Condition")+
+  #ylim(0,3000)+
+  theme_bw()+
+  stat_compare_means(paired = TRUE, method = "t.test", label.y = 1500 )
+
+
+```
+
+```{r}
+test.IP.end.IA.poledata <- xdata %>%
+  filter(condition!="hab", IP_LABEL=="IP_End", IA_LABEL=="pole_AOI")
+
+
+t.test(test.IP.end.IA.poledata$IA_DWELL_TIME[test.IP.end.IA.poledata$condition=="exp"], test.IP.end.IA.poledata$IA_DWELL_TIME[test.IP.end.IA.poledata$condition=="con"], paired=TRUE)
+```
+
+
+### Onscreen Dwell time (while videos is playing)
+
+```{r}
+on_scree_data<-read.delim("data/ET_VoE_Occlusion_IA_report_video_period.txt", header=TRUE, na=".", sep = "\t")%>%
+  filter( IA_LABEL=="right_AOI")%>%
+  mutate(ip_duration=IP_END_TIME-IP_START_TIME, prop_looking=TRIAL_DWELL_TIME/ip_duration)%>%
+    mutate(EDF=fct_recode(Session_Name_, Georgia_2="Georgia2",Georgia_1="Georgia1", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(EDF, c("subject", "session.num"), sep="_")%>%
+  select(Session_Name_, subject, condition, phase, TRIAL_DWELL_TIME, ip_duration, prop_looking)%>%
+  mutate(condition=as.factor(condition))
+
+
+on_scree_data%>%group_by(condition)%>%
+  summarise(median=median(prop_looking, na.rm = TRUE),mean=mean(prop_looking, na.rm = TRUE), se=sd(prop_looking, na.rm = TRUE)/sqrt(length(prop_looking)), min=min(prop_looking, na.rm = TRUE), max=max(prop_looking, na.rm = TRUE))
+
+```
+
+onscreen dwell-time: comparison between first and last familiarisation trial.
+```{r}
+library(broom)
+on_scree_data%>%filter(phase=="hab1" | phase=="hab3")%>%
+  group_by(subject, phase)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()%>%
+  summarise(ttest = list(t.test(mean ~ phase, paired=TRUE)))%>%
+  mutate(ttest = map(ttest, tidy)) %>%
+  unnest()
+```
+
+
+onscreen dwell-time: comparison between test trials
+```{r}
+on_scree_data%>%filter(phase=="test")%>%
+  group_by(subject, condition)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()%>%
+  summarise(ttest = list(t.test(mean ~ condition, paired=TRUE)))%>%
+  mutate(ttest = map(ttest, tidy)) %>%
+  unnest()
+```
+
+Plot onscreen dwell time in test trials
+```{r}
+xx<-on_scree_data%>%filter(phase=="test")%>%
+  group_by(subject, condition)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()
+
+ggplot(data=xx, aes(x=condition, y=mean))+
+  geom_boxplot()
+```

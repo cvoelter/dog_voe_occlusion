@@ -1,0 +1,779 @@
+---
+title: "03_ET_VoE_animations_occlusion2screens_Sample Report"
+date: "22/05/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+rm(list = ls())
+library(tidyverse)
+library(summarytools)
+library(exactRankTests)
+library(lme4)
+library(naniar)
+library(gazer)
+library(zoo)
+
+
+##GAMM
+library(itsadug)
+packageVersion("itsadug")
+library(plotfunctions)
+packageVersion("plotfunctions")
+library(colorspace)
+packageVersion("colorspace")
+## Define colors:
+col1 <- 'pink1'
+col2 <- 'black'
+col3 <- 'indianred'
+library(cowplot)
+
+
+load(file = "voe_occlusion_exp2_workspace.RData")
+```
+
+
+## Notes: 
+Session 1: Ace_1: leider im zweiten control trial runter, daher ganzen Test wiederholt (Ace_2)
+Session 2: Hetti_2: leider im zweiten test trial runter, daher Hetti_3: nur zweites test trial wiederholt
+
+
+### Loading data
+```{r}
+## time.frame for interpolation
+max.time <- 8500
+min.time <- 0
+time.frame <- seq(from = min.time, to = max.time, by = 1)
+xx <- as.data.frame(time.frame)
+
+baseline.end<-2300
+
+demo.data <- read_csv("data/VoE_occlusion_2screens_demographics and counterbalancing.csv")%>%
+  mutate(EDF1=fct_recode(as.factor(EDF1), "Georgia_1"="Georgia1", "Cheynna_1"="Cheynna1"))%>%
+  separate(EDF1, c("subject", "num"), sep="_")
+
+
+sample.data <- read_parquet(file = "data/VoE_occlusion_Exp2_sample_report.parquet")%>%
+  filter(!(DATA_FILE=="Ace_2.edf" & Trial_Index_!=4))%>%
+  mutate(trial=ifelse(DATA_FILE=="Ace_2.edf" & Trial_Index_==4, 5, Trial_Index_))%>% #recoding of trial number to account for a dog that did not complete his first session, session was repeated with this dog
+  mutate(Session_Name_=fct_recode(Session_Name_, Georgia_1="Georgia1",Georgia_2="Georgia2", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(Session_Name_, c("subject", "session.num"), sep = "_") %>%
+  mutate(condition_trial=paste(condition, "_", trial))%>%
+  full_join(demo.data) %>%
+  filter(!is.na(session.num))%>%
+ # rename(trial = "Trial_Index_") %>%
+  mutate(time.frame = TIMESTAMP - IP_START_TIME)%>%
+  filter(phase != "hab1" & phase != "hab2")
+
+#data file checks
+table(sample.data$subject, sample.data$phase)
+table(sample.data$subject, sample.data$trial)
+table(sample.data$DATA_FILE, sample.data$trial)
+table(sample.data$subject, sample.data$condition)
+table(sample.data$subject, sample.data$condition_trial)
+
+```
+### Pupil size
+
+#### Artefact check
+*Plot raw data
+```{r}
+raw.pupil_trial4<-ggplot(data = sample.data %>% filter(condition != "hab", trial==4), aes(x = time.frame, y = RIGHT_PUPIL_SIZE)) +
+  ylab("Pupil size") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.3, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8500) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = "none", legend.text=element_text(size=12))
+
+raw.pupil_trial4
+```
+
+
+
+```{r}
+raw.pupil_trial5<-ggplot(data = sample.data %>% filter(condition != "hab", trial==5), aes(x = time.frame, y = RIGHT_PUPIL_SIZE)) +
+  ylab("Pupil size") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.3, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8500) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = "none", legend.text=element_text(size=12))
+
+raw.pupil_trial5
+```
+
+* Plot with blink artefacts removed
+```{r}
+sample.data<-sample.data%>%
+        mutate(RIGHT_PUPIL_SIZE_no_blinks=extend_blinks(RIGHT_PUPIL_SIZE,  hz=1000, fillback=100, fillforward=100), RIGHT_GAZE_X_no_blinks=extend_blinks(RIGHT_GAZE_X,  hz=1000, fillback=100, fillforward=100), RIGHT_GAZE_Y_no_blinks=extend_blinks(RIGHT_GAZE_Y,  hz=1000, fillback=100, fillforward=100))#Extends blinks
+```
+
+
+```{r}
+artefact_check_t4<-ggplot(data = sample.data%>% filter(condition != "hab", trial==4), aes(x = time.frame, y = RIGHT_PUPIL_SIZE_no_blinks)) +
+  ylab("Pupil size") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.5, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8000) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.85, 0.1), legend.text=element_text(size=12))
+
+artefact_check_t4
+
+ggsave(artefact_check_t4, filename = "graphs/voe_occlusion_exp1_artefact_check_100_trial4.png", width=10, height=8)
+
+artefact_check_t5<-ggplot(data = sample.data%>% filter(condition != "hab", trial==5), aes(x = time.frame, y = RIGHT_PUPIL_SIZE_no_blinks)) +
+  ylab("Pupil size") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.5, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8000) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.85, 0.1), legend.text=element_text(size=12))
+
+artefact_check_t5
+
+ggsave(artefact_check_t5, filename = "graphs/voe_occlusion_exp1_artefact_check_100_trial5.png", width=10, height=8)
+```
+
+
+
+* Plot distribution of pupil sizes
+```{r eval=FALSE}
+puphist <- ggplot(sample.data, aes(x = RIGHT_PUPIL_SIZE_no_blinks)) + geom_histogram(aes(y = ..count..), 
+    colour = "green", binwidth = 0.5)  + 
+    xlab("Pupil Size") + ylab("Count") + theme_bw() 
+puphist
+```
+* Plot group level raw data
+```{r}
+
+pupil.group.level.raw <- sample.data %>%
+    mutate(condition=as.factor(condition))%>%
+  group_by(time.frame, condition) %>%
+  summarise(mean.pupil = mean(RIGHT_PUPIL_SIZE_no_blinks, na.rm = TRUE), sd.pupil= sd(RIGHT_PUPIL_SIZE_no_blinks, na.rm = TRUE), se.pupil = sd(RIGHT_PUPIL_SIZE_no_blinks, na.rm = TRUE) / sqrt(length(RIGHT_PUPIL_SIZE_no_blinks)))%>%
+  mutate(condition=fct_recode(condition, "Disappear"="exp", "Reappear"="con"))%>%
+  droplevels()
+
+plot.pupil.raw.grouplevel <- ggplot(data = pupil.group.level.raw%>% filter(condition != "hab"), aes(x = time.frame, y = mean.pupil)) +
+  ylab("Pupil size (arbitrary units)") +
+  xlab("Time (in ms)") +
+  geom_path(aes(x = time.frame, y = mean.pupil, color = condition), alpha = 0.6, size = 0.6) +
+  geom_ribbon(aes(ymin = mean.pupil - se.pupil, ymax = mean.pupil + se.pupil, fill = condition), alpha = 0.4) +
+    xlim(min.time, max.time) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.15, 0.85), legend.text=element_text(size=12), 
+        legend.background = element_rect(fill = "transparent"))
+
+
+plot.pupil.raw.grouplevel
+
+```
+#### Preprocessing: interpolation, baseline correction, down sampling
+```{r}
+# subtractive baseline correction
+exp.data.pupil.base <- sample.data %>%
+  filter(time.frame < baseline.end & time.frame > 0) %>%
+    group_by(subject, condition_trial) %>%
+  summarise(median.base.pupil = median(RIGHT_PUPIL_SIZE_no_blinks, na.rm = TRUE))
+
+
+exp.data.pupil.processed <- sample.data %>%
+  filter(phase != "hab1" & phase != "hab2" & time.frame < max.time) %>% 
+  select(subject, time.frame, condition, trial, condition_trial, RIGHT_GAZE_X_no_blinks, RIGHT_GAZE_Y_no_blinks, RIGHT_PUPIL_SIZE_no_blinks) %>%
+  group_by(subject, condition_trial, time.frame) %>%
+  full_join(xx%>%select(time.frame)) %>% #add missing time.frames
+  ungroup() %>%
+  group_by(subject, condition_trial) %>%
+  mutate(pupil.inter = na.approx(RIGHT_PUPIL_SIZE_no_blinks, na.rm = FALSE, maxgap = 500)) %>% #linear interpolation
+  full_join(exp.data.pupil.base) %>% #add baseline data
+  mutate(pupil.base.corrected = pupil.inter - median.base.pupil)%>% #subtractive baseline correction
+  ungroup()%>%
+    mutate(bin = cut(time.frame, seq(min(time.frame), max(time.frame), 100), right = FALSE))%>% #addition of time bins (100 ms = 10 hz)
+  separate(bin, c("bin_low", "bin_high"), sep=",", remove=FALSE)%>%
+  select(-bin_high)%>%
+  mutate(bin_low=as.numeric(str_replace_all(bin_low, "\\[|\\]", "")))
+  
+exp.data.pupil.processed.downsampled <- exp.data.pupil.processed %>%  
+  group_by(subject, condition, condition_trial,trial, bin_low)%>%
+  summarise(pupil.base.corrected.binned=median(pupil.base.corrected),pupil.raw.binned=median(pupil.inter), Xgaze=mean(RIGHT_GAZE_X_no_blinks), Ygaze=mean(RIGHT_GAZE_Y_no_blinks)) #down sampling to 10hz using median values
+```
+
+
+* Plot individual interpolated data
+```{r}
+plot_interpolated_individual_trial4<- ggplot(data = exp.data.pupil.processed.downsampled%>% filter(condition != "hab", trial==4), aes(x = bin_low, y =pupil.base.corrected.binned )) +
+  ylab("Pupil size (preprocessed)") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.8, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8500) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.85, 0.1),
+        legend.text=element_text(size=12))
+
+ggsave(plot_interpolated_individual_trial4, filename = "graphs/voe_occlusion_exp1_interpolated_individual_trial4.png", width=10, height=8)
+
+plot_interpolated_individual_trial5 <- ggplot(data = exp.data.pupil.processed.downsampled%>% filter(condition != "hab", trial==5), aes(x = bin_low, y =pupil.base.corrected.binned )) +
+  ylab("Pupil size (preprocessed)") +
+  xlab("Time (in ms)") +
+  geom_point(aes(color = condition), alpha = 0.8, size = 0.5) +
+  facet_wrap(~subject)+
+  xlim(0, 8500) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.85, 0.1),
+        legend.text=element_text(size=12))
+
+ggsave(plot_interpolated_individual_trial5, filename = "graphs/voe_occlusion_exp1_interpolated_individual_trial5.png", width=10, height=8)
+```
+
+* Plot group level data
+```{r}
+
+pupil.group.level <- exp.data.pupil.processed.downsampled %>%
+  group_by(bin_low, condition) %>%
+  summarise(mean.pupil.corrected.binned = mean(pupil.base.corrected.binned, na.rm = TRUE), sd.pupil.corrected.binned= sd(pupil.base.corrected.binned, na.rm = TRUE), se.pupil.corrected.binned = sd(pupil.base.corrected.binned, na.rm = TRUE) / sqrt(length(pupil.base.corrected.binned)))%>%
+  mutate(condition=fct_recode(condition, "Disappear"="exp", "Reappear"="con"))
+
+plot.interpolated_group <- ggplot(data = pupil.group.level %>% filter(condition != "hab"), aes(x = bin_low, y = mean.pupil.corrected.binned)) +
+  ylab("Pupil size") +
+  xlab("Time (in ms)") +
+    geom_vline(aes(xintercept=2140), lty=3, col="darkgrey")+
+    geom_vline(aes(xintercept=2500), lty=3, col="darkgrey")+
+      geom_vline(aes(xintercept=3890), lty=4, col="darkgrey")+
+    geom_vline(aes(xintercept=4250), lty=4, col="darkgrey")+
+  geom_path(aes(x = bin_low, y = mean.pupil.corrected.binned, color = condition), alpha = 0.3, size = 0.5) +
+  geom_ribbon(aes(ymin = mean.pupil.corrected.binned - se.pupil.corrected.binned, ymax = mean.pupil.corrected.binned + se.pupil.corrected.binned, fill = condition), alpha = 0.3) +
+    xlim(0, 8500) +
+    theme_bw()+
+  scale_color_manual(values=c("darkorange", "dodgerblue"))+
+  scale_fill_manual(values=c("darkorange", "dodgerblue"))+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        legend.title = element_blank(), legend.position = c(0.87, 0.18), legend.text=element_text(size=12),
+    legend.background = element_rect(fill = "transparent"))
+
+
+
+plot.interpolated_group
+
+ggsave(plot.interpolated_group, filename = "graphs/voe_occlusion_exp2_interpolated_group.png", height = 5, width = 6, scale = 0.6)
+```
+### GAMM
+`
+* Plot gaze positions
+```{r}
+emptyPlot(c(0,1024), c(768, 0), bty='o',
+          main="Gaze positions", xlab="Xgaze", ylab="Ygaze")
+points(exp.data.pupil.processed.downsampled$Xgaze, exp.data.pupil.processed.downsampled$Ygaze, pch=16, cex=.5, col=alpha(1), xpd=TRUE)
+abline(h=768/2, v=1024/2, lty=1, col='white')
+abline(h=768/2, v=1024/2, lty=2, col=1)
+```
+
+* Plot pupil size by subject
+```{r}
+par(cex=1.1)
+bp <- sortBoxplot(exp.data.pupil.processed.downsampled$pupil.base.corrected.binned ~ exp.data.pupil.processed.downsampled$subject, col=alpha(1), decreasing=FALSE,
+                  ylab="Pupil size", xlab="Subject", bty='n', pch=".")
+
+
+```
+
+#### data preparation for GAMM
+
+* select interest period
+```{r}
+dat <- exp.data.pupil.processed.downsampled%>%
+  filter(bin_low >= baseline.end & bin_low <= (baseline.end+4000), condition!="hab")%>% #select interest period
+  rename(pupil_base="pupil.base.corrected.binned", time="bin_low")%>%
+  arrange(subject, condition, time)%>%#order dataframe
+  droplevels()
+
+dat$condition<-as.factor(dat$condition)
+dat$subject<-as.factor(dat$subject)
+```
+
+* Plot individiual variability in pupil size
+
+```{r}
+pupil_size_boxplot<-ggplot(na.omit(dat))+
+  geom_boxplot(aes(x= reorder(subject, pupil.raw.binned, FUN = median), y=pupil.raw.binned))+
+  ylab("Pupil size (arbitrary units)")+
+  xlab("")+
+  theme_classic()+ 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+
+pupil_size_gaze_position_plot<-ggplot(dat)+
+  geom_point(aes(x= Xgaze, y=Ygaze, color=pupil_base), alpha=0.15)+
+  ylab("Y coordinates")+
+  xlab("X coordinates")+
+  theme_bw()+
+  xlim(0,1024)+
+  ylim(768, 0)+
+  scale_colour_gradient(name= "Pupil size", low = "yellow", high = "darkblue")
+library(cowplot)
+pg_s1<-plot_grid(pupil_size_boxplot, pupil_size_gaze_position_plot, rel_widths=c(1, 1.2), labels=c("B", "C"))
+pg_s2<-plot_grid(plot.pupil.raw.grouplevel, pg_s1, nrow=2, rel_heights=c(1.5,1), labels=c("A", ""))
+
+ggsave("graphs/voe_occlusion_exp2_pupil_size_sup_info.png", width=11, height=11, scale=0.7)
+
+```
+
+#### taking autocorrelation into account
+
+```{r}
+# Defining events (time series):
+dat$Event <- interaction(dat$subject, dat$condition_trial, drop=TRUE)
+
+m2 <- bam(pupil_base ~ condition + s(time, k=20)+ s(time, by=condition, k=20) 
+          + s(Xgaze, Ygaze)
+          + s(time, Event, bs='fs', m=1) + s(time, subject, bs='fs', m=1)
+          , data=dat, discrete=TRUE, nthreads=40, method="ML")
+
+m2.null <- bam(pupil_base ~ s(time, k=20)+ 
+          + s(Xgaze, Ygaze)
+          + s(time, Event, bs='fs', m=1) + s(time, subject, bs='fs', m=1)
+          , data=dat, discrete=TRUE, nthreads=40, method="ML")
+```
+
+
+```{r}
+summary(m2)
+
+#concurvity(m2, full = FALSE)
+gam.check(m2)
+acf(resid(m2), bty='n', main="ACF residuals model1")
+acf(resid(m2), plot=FALSE)
+
+compareML(m2, m2.null)
+AIC(m2, m2.null)
+
+```
+
+
+
+
+
+
+
+
+
+
+* difference curve
+```{r}
+plot_diff(m2, view="time", 
+          comp=list(condition=c("exp", "con")), rm.ranef=TRUE, main="Disappear - Reappear", 
+          las=1, ylab="Est. difference in pupil size", 
+            col=col2, hide.label = TRUE, plot = TRUE)
+
+plot_diff_m2<-plot_diff(m2, view="time", 
+          comp=list(condition=c("exp", "con")), rm.ranef=TRUE, main="Disappear - Reappear", 
+          las=1, ylab="Est. difference in pupil size", 
+            col=col2, hide.label = TRUE, plot = FALSE)#col.diff=alpha(1,f=0),v0=1800,
+
+x <- find_difference(plot_diff_m2$est, plot_diff_m2$CI, f=1.0, xVals=plot_diff_m2$time)
+
+plot_diff_m2_gg<-ggplot(data=plot_diff_m2, aes(x=time, y=est))+
+  geom_hline(yintercept = 0)+
+  geom_vline(aes(xintercept=2500), lty=3, col="darkgrey")+
+  geom_vline(aes(xintercept=3890), lty=4, col="darkgrey")+
+  geom_vline(aes(xintercept=4250), lty=4, col="darkgrey")+
+  geom_path(lty=2)+
+  geom_ribbon(aes(x=time, ymin=est-CI, ymax=est+CI), alpha=0.2)+
+  theme_bw()+
+  scale_x_continuous(name="Time (in ms)", breaks=c(3000, 4000, 5000, 6000))+ ylab("Est. difference in pupil size")+ggtitle("Disappear - Reappear")+
+    theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank())+
+  #geom_vline(xintercept = x$start[1], lty=3, color="red")+
+  #geom_vline(xintercept = x$end[1], lty=3, color="red")+
+  geom_segment(aes(x=x$start[1], xend=x$start[1], y=-40, yend=40), color="red", lwd=0.7)+
+  geom_segment(aes(x=x$end[1], xend=x$end[1], y=-40, yend=40), color="red", lwd=0.7)+
+  geom_segment(aes(x=x$start[1], xend=x$end[1], y=0, yend=0), color="red", lwd=1.1)
+
+
+ggsave(plot_diff_m2_gg, filename = "graphs/VoE_occlusion_exp2_GAMM_diffcurve.png", width=6, height=5, scale=0.6)
+
+
+
+```
+
+* plotting partial effects
+```{r}
+pdf("graphs/VoE_occlusion_exp2_GAMM_partical_effect.pdf", width=10, heigh=8)
+plot(m2, pages = 1, all.terms = TRUE, residuals = TRUE, rug=FALSE, pch = 1, cex = 0.5, seWithMean = TRUE, shade = TRUE, shade.col = "lightblue")
+dev.off()
+
+library(mgcViz)
+b <- getViz(m2)
+png("graphs/VoE_occlusion_exp2_GAMM_partical_effect2.png", width=25, height=20, units="cm", res=600)
+p1<-plot(b, allTerms = T)+theme_classic() + labs(title = NULL)
+print(p1, pages = 1 )
+dev.off()
+
+
+#ggsave(p1, filename = "graphics/VoE_occlusion2screens_GAMM_partical_effect.png", width=10, height = 8, scale=0.8)
+```
+
+
+* Summed effects
+```{r}
+png("graphs/voe_occlusion_exp2_m2_summed_effect.png", width=14, height=10, units="cm", res=600)
+plot_smooth(m2, view="time", cond=list(condition="con"), rm.ranef=TRUE,
+  v0=0, col=col2, lwd=2, lty=6, rug=FALSE, se=1.96,
+  main="Estimated effects", ylab="Pupil (baselined)", las=1,
+  ylim=c(-2000,2000))
+plot_smooth(m2, view="time", cond=list(condition="exp"), rm.ranef=TRUE,
+  v0=0, col=col3, lwd=2, lty=6, rug=FALSE, add=TRUE, xpd=TRUE, se=1.96)
+
+
+# legend
+legend('bottomright',
+       legend=c('Reappear', "Disappear"),
+       lty=rep(c(1,6), each=2), lwd=rep(c(1,2), each=2),
+       col=rep(c(col2, col3), 2), seg.len=1.5,
+       bty='n', cex=.85, ncol=2, xpd=TRUE)
+dev.off()
+
+```
+
+```{r}
+
+tmp <- m2$model
+
+plot_modelfit(m2, view="time", event=tmp$Event,n = 5)
+
+```
+
+
+```{r}
+# binary predictors:
+dat$con_diff <- ifelse(as.character(dat$condition)=="con", 1,
+                          ifelse(as.character(dat$condition)=="exp", 0, NA))
+
+
+m2.diff <- bam(pupil_base ~ s(time, k=20) + s(time, by=con_diff, k=20) 
+          + s(Xgaze, Ygaze)
+          + s(time, Event, bs='fs', m=1)
+          , data=dat, discrete=TRUE, nthreads=40, method="ML")
+
+summary(m2.diff)
+gam.check(m2.diff)
+#the difference curve is signficantly different from 0
+```
+
+```{r}
+
+medianAbs <- function(x){
+  return(median(abs(x[!is.na(x)])))
+}
+
+corFit <- function(model){
+  return(cor(fitted(model), model$model[,1]))
+}
+
+correlations <- c(corFit(m2), corFit(m2.AR))
+res          <- c(medianAbs(residuals(m2)),medianAbs(residuals(m2.AR)))
+
+par(mfrow=c(1,2), cex=1.1)
+
+b <- barplot(correlations, beside = TRUE, 
+        main="Correlation fit and data",
+        col=alpha(1), ylim=c(0,1), ylab="Correlation")
+mtext(c("model1\n(m2)", "model4\n(m2.AR)"), side=1, at=b, line=2)
+text(b, rep(0.1,3), labels=round(correlations,3), srt=90, adj=0)
+
+b <- barplot(res, beside = TRUE, 
+        main="Median absolute residuals",
+        col=alpha(1), ylab="Residuals")
+mtext(c("model1\n(m2)", "model4\n(m2.AR)"), side=1, at=b, line=2)
+text(b, rep(5,3), labels=round(res,2), srt=90, adj=0)
+
+```
+
+
+```{r}
+save.image(file = "voe_occlusion_exp2_workspace.RData")
+```
+
+
+
+
+## Plot gaze data
+Interpolate AI values
+
+```{r}
+ai.data <- read_csv("data/VoE_occlusion_2screens_dynamicAOI.csv") %>%
+  mutate(x_average = (x_l + x_r)/2, time.frame = start)
+
+## interpolation
+max.time <- max(ai.data$end)
+min.time <- min(ai.data$start)
+time.frame <- seq(from = min.time, to = max.time, by = 1)
+xx <- as.data.frame(time.frame)
+
+library(zoo)
+
+ball.data <- xx %>%
+  full_join(ai.data, by = "time.frame") %>%
+  mutate(x_approx = na.approx(x_average), x_l_approx = na.approx(x_l), x_r_approx = na.approx(x_r))
+
+```
+
+
+```{r}
+gaze_plot_data <- exp.data.pupil.processed.downsampled %>%
+  filter(bin_low < 8500 ) %>%
+  group_by(bin_low, condition) %>%
+  summarise(mean.x = mean(Xgaze, na.rm=TRUE), median.x = median(Xgaze,  na.rm=TRUE), se.x = sd(Xgaze, na.rm=TRUE) / sqrt(length(Xgaze))) %>%
+  mutate(time.frame=bin_low)%>%
+  inner_join(ball.data)
+```
+
+```{r}
+
+
+gaze_plot_data$condition<-relevel(as.factor(gaze_plot_data$condition), "hab",  "con", "exp")
+
+con.labs <- c("Familiarisation", "Reappear", "Disappear")
+names(con.labs) <- c(levels(as.factor(gaze_plot_data$condition)))
+
+gaze_plot_data$x <- rep("x", nrow(gaze_plot_data))
+gaze_plot_data$y <- rep("y", nrow(gaze_plot_data))
+
+gaze_occlusion_plot<-ggplot(data = gaze_plot_data, aes(x = time.frame, y = mean.x)) +
+      facet_wrap(~condition,labeller=labeller(condition=con.labs)) +
+  #moving ball:
+    geom_ribbon(data = gaze_plot_data %>% filter(condition != "hab") %>% filter(time.frame %in% (0:2100)), aes(x = time.frame, ymin = x_l_approx, ymax = x_r_approx), fill = "#988B2D", alpha = 0.8) +
+      geom_ribbon(data = gaze_plot_data %>% filter(condition == "con") %>% filter(time.frame %in% (2500:3900)), aes(x = time.frame, ymin = x_l_approx, ymax = x_r_approx, fill = condition),  alpha = 0.8) +
+      geom_ribbon(data = gaze_plot_data %>% filter(condition != "hab") %>% filter(time.frame %in% (4250:8500)), aes(x = time.frame, ymin = x_l_approx, ymax = x_r_approx), fill = "#988B2D", alpha = 0.8) +
+  geom_ribbon(data = gaze_plot_data %>% filter(condition == "hab") %>% filter(time.frame < 5200), aes(x = time.frame, ymin = x_l_approx, ymax = x_r_approx), fill = "#988B2D", alpha = 0.8) +
+  #left occluder
+  geom_ribbon(data=gaze_plot_data %>% filter(condition != "hab"), aes(x = time.frame, ymin = 280, ymax = 440), fill = "#4F6AC1", alpha = 1) + 
+  #right occluder   
+  geom_ribbon(data=gaze_plot_data %>% filter(condition != "hab"), aes(x = time.frame, ymin = 580, ymax = 740), fill = "#4F6AC1", alpha = 1) + 
+    geom_point(aes(fill = x), alpha = 0.1, size=0.5) +
+  geom_path(aes(y = median.x, fill = y), size = 1.2) +
+   geom_ribbon(aes(ymin = mean.x - se.x, ymax = mean.x + se.x), alpha = 0.5)+
+  ylab("Horizontal coordinates (in px)") +
+  xlab("Time (in ms)") +
+  ylim(-50, 1000)+
+    theme_bw()+
+  theme(panel.grid.major.x = element_blank(),
+        panel.grid.minor.x = element_blank(),
+        panel.grid.major.y = element_blank(),
+        panel.grid.minor.y = element_blank(),
+        strip.text.x = element_text(size = 12),
+    legend.position = c(0.22, 0.26),
+    legend.key = element_blank(),
+    legend.background = element_rect(fill = "transparent"))+
+    scale_fill_manual(
+    values = c("#988B2D", "#5a5e63", "black"),
+    name = "",
+    breaks = c("con", "x", "y"),
+    labels = c("Ball", "Mean ± SE", "Median")
+  )
+
+gaze_occlusion_plot
+#ggsave(gaze_occlusion_plot,filename="graphs/occlusion_mean_x_gaze.png", height = 5, width = 8, scale = 0.7)
+```
+
+### Adding screenshots
+
+```{r}
+library(cowplot)
+occlusion_exp_ini_photo <- "screenshots/two_occluders_disappear.mp4_snapshot_00.00.540.jpg"
+occlusion_con_ini_photo <- "screenshots/two_occluders_reappear.mp4_snapshot_00.00.540.jpg"
+occlusion_exp_2_photo <- "screenshots/two_occluders_disappear.mp4_snapshot_00.01.800.jpg"
+occlusion_exp_3_photo <- "screenshots/two_occluders_disappear.mp4_snapshot_00.03.060.jpg"
+occlusion_exp_fin_photo <- "screenshots/two_occluders_disappear.mp4_snapshot_00.04.860.jpg"
+occlusion_con_2_photo <- "screenshots/two_occluders_reappear.mp4_snapshot_00.01.800.jpg"
+occlusion_con_3_photo <- "screenshots/two_occluders_reappear.mp4_snapshot_00.03.060.jpg"
+occlusion_con_fin_photo <- "screenshots/two_occluders_reappear.mp4_snapshot_00.04.860.jpg"
+
+occlusion_exp_ini <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_exp_ini_photo)
+occlusion_exp_2 <- ggdraw(theme(plot.margin = unit(c(0, 0, 0,0), "cm"))) + draw_image(occlusion_exp_2_photo)
+occlusion_exp_3 <- ggdraw(theme(plot.margin = unit(c(0, 0, 0,0), "cm"))) + draw_image(occlusion_exp_3_photo)
+occlusion_exp_fin <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_exp_fin_photo)
+occlusion_con_ini <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_con_ini_photo)
+occlusion_con_2 <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_con_2_photo)
+occlusion_con_3 <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_con_3_photo)
+occlusion_con_fin <- ggdraw(theme(plot.margin = unit(c(0, 0, 0, 0), "cm"))) + draw_image(occlusion_con_fin_photo)
+
+occlusion_pics_exp<-plot_grid(occlusion_exp_ini, occlusion_exp_2, occlusion_exp_3, occlusion_exp_fin, nrow=1)
+occlusion_pics_con<-plot_grid(occlusion_con_ini, occlusion_con_2, occlusion_con_3, occlusion_con_fin, nrow=1)
+```
+
+## Dwell time plot: first test trial
+```{r}
+end.ip.data <- read_delim("data/ET_VoE_occlusion2screens_IA_report_whole_screen_end_IP.txt", na=".", delim="\t")%>%
+  select(Session_Name_, IP_LABEL, IA_LABEL,IA_ID, Trial_Index_, condition, phase, session,  video_file, video_id, video_latency, DATA_FILE,  IA_AREA, IA_AVERAGE_FIX_PUPIL_SIZE,  IA_DWELL_TIME, "IA_DWELL_TIME_%", IA_FIXATION_COUNT, IA_MAX_FIX_PUPIL_SIZE, INTEREST_AREA_FIXATION_SEQUENCE, TRIAL_DWELL_TIME, TRIAL_FIXATION_COUNT, TRIAL_IA_COUNT, TRIAL_TOTAL_VISITED_IA_COUNT )%>%
+   filter(!(DATA_FILE=="Ace_2.edf" & Trial_Index_!=4))%>%
+  mutate(trial=ifelse(DATA_FILE=="Ace_2.edf" & Trial_Index_==4, 5, Trial_Index_))%>% #recoding of trial number to account for a dog that did not complete his first session, session was repeated with this dog
+  mutate(Session_Name_=fct_recode(Session_Name_, Georgia_1="Georgia1",Georgia_2="Georgia2", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(Session_Name_, c("subject", "session.num"), sep = "_") %>%
+  mutate(condition_trial=paste(condition, "_", trial))%>%
+  full_join(demo.data)%>%
+  mutate(condition=fct_recode(as.factor(condition), "Disappear"="exp", "Reappear"="con"))%>%
+  filter(condition!="hab", IA_LABEL=="IA_end_position", trial==4)
+```
+
+```{r}
+max(end.ip.data$IA_DWELL_TIME)
+
+end.ip.data$condition2 <- jitter(as.numeric(as.factor(end.ip.data$condition), amount = .0001))
+y_lim_min<-0
+y_lim_max<-3550
+
+library(gghalves)
+
+
+plot_dwell_end_IP_endpos_IA <- ggplot(data = end.ip.data, aes(x = condition, y= IA_DWELL_TIME)) +
+  #Add geom_() objects
+   geom_point(data = end.ip.data %>% filter(condition =="Reappear"), aes(x = condition2), color = 'darkorange', size = 1.5, 
+              alpha = .5) +
+   geom_point(data = end.ip.data %>% filter(condition =="Disappear"), aes(x = condition2), color = 'dodgerblue', size = 1.5, 
+              alpha = .5) +
+   geom_line(aes(x = condition2, group = subject), color = 'lightgray', alpha = .5) +
+  
+   geom_half_boxplot(
+     data = end.ip.data %>% filter(condition=="Reappear"), aes(x=condition2, y = IA_DWELL_TIME), position = position_nudge(x = -.4), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .1, 
+     fill = 'darkorange', alpha = .5) +
+   
+   geom_half_boxplot(
+     data = end.ip.data %>% filter(condition=="Disappear"), aes(x=condition2, y = IA_DWELL_TIME), position = position_nudge(x = .25), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .1, 
+     fill = 'dodgerblue', alpha = .5) +
+   #Define additional settings
+   scale_x_continuous(breaks=c(1,2), labels=c("Reappear", "Disappear"), limits=c(0.4, 2.5)) +
+   xlab("Condition") + ylab("Dwell time (in ms)") +
+#   ggtitle('Ball: end position') +
+   theme_classic()+
+   coord_cartesian(ylim=c(y_lim_min, y_lim_max))
+  
+plot_dwell_end_IP_endpos_IA 
+ 
+ggsave(plot_dwell_end_IP_endpos_IA, filename = "graphs/voe_occlusion_exp2_dwell_end_IP_endpos_IA.png", height=5, width=5, scale=0.8)
+```
+
+
+```{r}
+pg_occlusion<-plot_grid(gaze_occlusion_plot, plot_dwell_end_IP_endpos_IA,  ncol=2,nrow=1, rel_widths = c(2,1), labels = c("C","D") )
+
+pg_occlusion1<-plot_grid(plot.interpolated_group, plot_diff_m2_gg, rel_widths = c(2,1),labels=c("E", "F"))
+
+ggsave(pg_occlusion1, filename = "graphs/VoE_occlusion_Exp2_pupil_size_pg1.png", width=10, height=4, scale=0.8)
+
+pg.occlusion2<-plot_grid(pg_occlusion,pg_occlusion1, ncol=1)
+
+pg.occlusion3<-plot_grid(occlusion_pics_con, occlusion_pics_exp, pg.occlusion2, ncol=1, rel_heights = c(0.5, 0.5, 1.5), labels = c("A", "B", ""), label_colour = "white")
+
+pg.occlusion3
+
+ggsave(pg.occlusion3, filename = "graphs/VoE_occlusion_exp2_figure.png", width = 12, height=12, scale=0.75)
+ggsave(pg.occlusion3, filename = "graphs/VoE_occlusion_exp2_figure.pdf", width = 10, height=12, scale=0.75)
+```
+
+
+
+## Dynamic AoI analysis: r-squared
+
+
+```{r}
+dynamic.aoi.data <- sample.data %>%
+  filter(time.frame < 8500 & RIGHT_GAZE_X > 0 & RIGHT_GAZE_X < 1024 & RIGHT_GAZE_Y > 0 & RIGHT_GAZE_Y < 768) %>%
+  mutate(phase2 = ifelse(session.num == 2 & phase == "hab1", "hab4", ifelse(session.num == 2 & phase == "hab2", "hab5", ifelse(session.num == 2 & phase == "hab3", "hab6", ifelse(phase == "test", condition, phase))))) %>%
+  group_by(phase2, condition, time.frame, subject) %>%
+  summarise(mean.x = mean(RIGHT_GAZE_X_no_blinks), mean.y = mean(RIGHT_GAZE_Y)) %>%
+  inner_join(ball.data%>%select(time.frame, x_approx))
+
+dynamic.aoi.data$phase2<-as.factor(dynamic.aoi.data$phase2)
+levels(dynamic.aoi.data$phase2)
+
+dynamic.aoi.data$condition<-as.factor(dynamic.aoi.data$condition)
+levels(dynamic.aoi.data$condition)
+
+
+```
+
+
+```{r}
+library(broom)
+
+r2 <- dynamic.aoi.data %>%
+  filter(time.frame < 2100 & time.frame > 500) %>% #ip until the ball disappeared
+  droplevels() %>%
+  nest(-subject, -condition) %>%
+  mutate(
+    fit = map(data, ~ lm(mean.x ~ x_approx, data = .)),
+    results = map(fit, glance)
+  ) %>%
+  unnest(results) %>%
+  select(subject, condition, r.squared) %>%
+  rename(r.sq.exp = r.squared) %>%
+  mutate(across(where(is.numeric), round, 3))
+
+
+
+r2 %>%
+  group_by(condition) %>%
+  summarise(mean = mean(r.sq.exp), median = median(r.sq.exp), min = min(r.sq.exp), max = max(r.sq.exp), sd = sd(r.sq.exp))
+
+
+```

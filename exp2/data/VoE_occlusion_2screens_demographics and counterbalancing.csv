@@ -1,0 +1,18 @@
+Dog_ID,Date1,Date2,EDF1,EDF2,Cal_tar1,Cal_tar2,Name,Breed,sex,neutered,birth_date,age,Order_condition
+5,10/02/2021,18/02/2021,Mavie_1,Mavie_2,w_fly64,w_minion32,Mavie,Border Collie,f,no,09.07.2019,19,control_first
+4,08/02/2021,10/02/2021,Vega_1,Vega_2,w_fly64,w_fly64,Vega,Border Collie,f,no,09.07.2019,18,test_first
+14,11/03/2021,17/03/2021,Beny_1,Beny_2,w_minion32,w_minion32,Beny,Mix,m,yes,28.04.2019,22,test_first
+1,29/01/2021,05/02/2021,George_1,George_2,w_fly64,w_fly64,George4,Collie,m,no,12.04.2019,21,test_first
+9,17/02/2021,24/02/2021,Ace_1,Ace_3,w_minion32/w_fly32,w_minion32,Ace3,Border Collie,m,yes,15.03.2019,23,control_first
+8,11/02/2021,17/02/2021,Hetti_1,Hetti_2,w_minion32,w_fly32/w_minion32,Hetti,Mix,f,no,10.01.2019,25,control_first
+7,11/02/2021,20/02/2021,Timo_1,Timo_2,w_cuckoo32,w_cuckoo32,Timo2,Mix,m,no,01.02.2019,24,test_first
+2,10/02/2021,01/03/2021,Melody_1,Melody_2,w_fly64,w_fly64,Melody,Labrador Retriever,f,yes,14.08.2018,29,control_first
+3,08/02/2021,19/02/2021,Georgia1,Georgia2,w_cuckoo32,w_minion32,Georgia,Labrador Retriever,f,yes,29.12.2017,37,test_first
+12,22/02/2021,01/03/2021,Lilly_1,Lilly_2,w_minion32,w_minion32,Lilly9,Mix,f,yes,07.09.2017,41,control_first
+11,19/02/2021,05/03/2021,Dawin_1,Dawin_2,w_fly64,w_fly64,Dawin,Border Collie,m,no,01.02.2016,60,test_first
+13,25/02/2021,19/03/2021,Maylo_1,Maylo_2,w_mandala64,w_calibug64,Maylo,Mix,m,yes,13.11.2015,63,control_first
+10,17/02/2021,24/02/2021,Asta_1,Asta_2,w_minion64,w_calibug64,Asta2,Border Collie,f,no,5.10.2018,28,control_first
+6,10/02/2021,18/02/2021,Cheynna1,Cheynna2,w_calibug64,w_minion32,Cheynna,Australian Shepherd,f,no,28/04/2014,81,test_first
+15,16/03/2021,23/03/2021,Joker_1,Joker_2,cal_star_bg_long_white,w_minion64,Joker4,Australian Shepherd,m,no,18/08/2016,54,control_first
+16,16/03/2021,23/03/2021,Zserbo_1,Zserbo_2,w_minion32,w_cuckoo32,Zserbo,Small Münsterländer,m,no,24/12/2019,14,test_first
+17,27/04/2021,30/04/2021,Juna_1,Juna_2,w_minion64,w_calibug32,Juna,Flat Coated Retriever,f,no,06/02/2016,62,test_first

@@ -1,0 +1,726 @@
+---
+title: "Dog VoE analysis"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list = ls())
+library(tidyverse)
+library(lme4)
+library(summarytools)
+#library(glmmTMB)
+library(car)
+library(betareg)
+library(lmtest)
+library(psych)
+
+source("./functions/diagnostic_fcns.r")
+source("./functions/ci_glm.r")
+
+
+#load("voe_exploration_analysis.RData")
+
+```
+
+Preregistration
+
+Hypothesis
+A recent eye-tracking study (Völter & Huber, 2021; https://psyarxiv.com/3pr9z) using screen-based stimuli suggested that dogs show a stronger pupil dilation response (typically used as a proxy for surprise when the light conditions are controlled and kept constant) when presented with knowledge-incongruent occlusion events (e.g., a ball disappearing behind a narrow pole). In contrast, the dogs did not show such a surprise response when presented with knowledge-incongruent support events (e.g., a ball rolling over the edge of a surface and hovering through the air). 
+In the current study, our aim is to examine whether we can replicate dogs’ reaction to screen-based knowledge-incongruent events using real world demonstrations and looking times (instead of pupillometry). We will conduct a violation-of-expectation study using real-world demonstrations followed by an exploration phase in which the dogs can either explore the object (i.e., a replica of the object they have seen before) or other objects. We will investigate whether dogs form expectations about the physical properties of objects. If the dogs form such expectations, we expect that they will look longer to the setup when these expectations are violated (incongruent condition) compared to control events that are not in conflict with these expectations (congruent condition). Moreover, we hypothesize that a violation of their expectations subsequently will lead to increased exploration behavior. Therefore, we predict that the dogs will first approach and interact longer with the target object in incongruent condition compared to the congruent condition.
+The setup consists of an apparatus resembling a small stage. An object (e.g., a ball) can be moved by the experimenter from behind the apparatus (unseen by the dog). In Experiment 1, a ball will move along a flat surface in the familiarization trials. In the test trial, two occluders will partly occlude the path of the ball. The ball will roll along the flat surface passing behind the two occluders. In the incongruent condition, it will not be visible in the gap between the two occluders while in the congruent condition it will be visible in between the two occluders. 
+In Experiment 2, a ball will move along a flat surface in the familiarization trials. In the subsequent test trial, the surface will have a slanted slope on the right side of the stage (a ramp). In the congruent condition, the ball will move down the ramp. In the incongruent condition, the ball will continue moving as if there was no ramp (same trajectory as in the familiarization). 
+In Experiment 3, a ball will roll down a ramp. In the familiarization trials, the dogs will see how the ball rolls to right side of the stage where it will stop next to a vertical wall. In the test trial, another vertical wall will be added blocking the balls path in the center of the stage and the right half of the stage will be occluded by a screen. When the occluder is removed, the ball will either be located next to the solid wall in the center of the screen (congruent condition) or next to the wall on the right side of the stage (incongruent condition). In the incongruent condition, it will appear as if the ball passed through the first solid wall in the center of the stage. The obstacles behind the occluder will be visible even when the occluder in place. 
+
+Dependent variable
+For each experiment, we will score the following dependent variables: we will score the looking times to the setup during the demonstration phase, the durations the dogs interacted with each object (target or distractor) in the exploration phase, which object the dogs approached first (target or distractor), and whether or not the dogs approached the target object (yes / no). Interaction with an object will be scored when the dog touches or sniffs at an object. 
+From the absolute looking times, we will calculate the proportion looking time by dividing it by the duration of the demonstration. Based on the object interaction times, we will calculate two proportions: first, the proportion time the dogs interacted with the target object relative to the duration of the exploration phase (i.e. target interaction duration divided by duration of exploration phase) and, second, the proportion time the dogs interacted with the target objects compared to the other objects (i.e. target interaction duration divided by the total object interaction times).
+
+Conditions
+How many and which conditions will participants be assigned to?
+
+In each experiment, the dogs will be assigned to one condition, the congruent or incongruent condition (between-subject design). The assignment will be pseudo-random with the restriction that we will balance the groups as much as possible with respect to age, sex, and breed. 
+
+Analyses
+The three experiments will be analyzed separately. 
+To analyze the absolute looking times, we will fit a linear model with Gaussian error structure. If we detect violations of the assumptions (homogeneous and normally distributed residuals), we will convert the looking times into a proportion and fit a Generalized Linear Model (GLM) with beta error structure.
+For the proportion interaction time dependent variables, we will also fit GLMs with beta error structure. For the binary first approach dependent variables (target approached: yes/no; first approached object: target/distractor), we will fit binomial GLMs (logit link function).
+In all models, we will include condition (congruent, incongruent) as a test predictor (factor), and age and sex as control predictor variables. The continuous predictor age will be z-transformed to a mean of 0 and a standard deviation of 1.
+In case of the GLMs, inferences with respect to the fixed effects will be drawn by performing likelihood ratio tests between the full model and reduced models lacking single predictor variables. 
+If the models do not converge, we will follow the steps here: https://rpubs.com/bbolker/lme4trouble1 
+If these procedures do not fix convergence issues, then we will start removing control predictor variables in the following order: sex, age.
+
+Outliers and Exclusions
+We will exclude dogs from the analysis of an experiment if there is an apparatus malfunction, an experimenter mistake or any other interference (e.g. loud noises outside the testing room, etc.) that might distract the dogs during the demonstration. These dogs will not count toward the target sample size for the respective experiment. 
+
+Sample Size
+Our target sample size is 68 dogs (34 dogs per condition) based on the power analysis described below. The same dogs will participate in all three experiments.
+We conducted a simulation to evaluate the power of our planned analysis:
+For the looking time analysis, we assumed that the dogs would look at the setup on average 5 seconds in the congruent condition and 9 seconds in the incongruent condition (performance levels similar to values reported in the literature for expectancy violation studies in dogs; e.g. Pattison et al, 2013, Learning & Motivation). We assumed a residual standard deviation of 5 seconds. Additionally, we assumed that the two groups (congruent / incongruent) are balanced with respect to sex. The age of the dogs was drawn randomly (between 1 and 13 years) for every simulated dataset. We combined the fixed effects into the linear predictor and generated the response variable by sampling from a random normal distribution with a mean of the predictor effects and a standard deviation of 5. We simulated 1000 datasets (with 34 dogs per condition) and fitted the LM described in the data analysis section (absolute looking time ~ condition + sex + age). We evaluated the models using two criteria: whether they (i) converged and (ii) whether the p value of condition (model summary) was smaller than 0.05. We determined the proportion of models that fulfilled both criteria out of all simulated models. This revealed a power of 88.9%.
+For the first choice analysis (exploration phase), we assumed that 2/3 of the dogs would choose the target object first in the incongruent condition but only 1/3 in the congruent condition. Additionally, we assumed that the two groups (congruent / incongruent) are balanced with respect to sex. The age of the dogs was drawn randomly (between 1 and 13 years) for every simulated dataset. We combined the fixed effects into the linear predictor and generated the response variable by sampling from a binomial distribution using the inverse logit transformed linear predictor as probability of success. We simulated 1000 datasets (with 34 dogs per condition) and fitted the GLM described in the data analysis section (target choice ~ condition + sex + age). We evaluated the models using two criteria: whether they (i) converged and (ii) whether the likelihood ratio test of condition was significant. We determined the proportion of models that fulfilled both criteria out of all simulated models. This revealed a power of 83.2%.
+
+Other
+No response
+
+Name
+VoE-Exploration: Preregistration for a behavioural study with dogs examining whether expectancy violation leads to increased object exploration.
+# Demonstration phase
+## Load demonstration data
+```{r}
+occlusion.demonstration<-read.csv("data/voe_exploration_exp3_demonstration_data.csv")
+```
+
+
+```{r}
+#z transform covariate
+occlusion.demonstration$z.age<-as.vector(scale(occlusion.demonstration$age, center = TRUE, scale=TRUE))
+```
+
+
+### Fitting LM
+```{r}
+m1<-lm(looking_time~condition+sex+z.age, data=occlusion.demonstration)
+summary(m1)
+diagnostics.plot(m1)
+```
+
+#### Check for collinearity
+```{r}
+library(car)
+vif(m1)
+```
+
+model stability
+```{r}
+dffits(m1)
+hist(dffits(m1))
+max(abs(dffits(m1)))
+
+xx=cbind(coef(m1),
+coef(m1)+t(apply(X=dfbeta(m1), MARGIN=2, FUN=range)))
+colnames(xx)=c("orig", "min", "max")
+round(xx, 5)
+max(cooks.distance(m1))
+max(as.vector(influence(m1)$hat))
+```
+#### Confidence intervals
+```{r}
+xx=cbind(orig=coef(m1), confint(object=m1))
+round(xx, digits=3)
+```
+
+#### output table
+
+```{r}
+
+model_demo_lm<- bind_cols(as.data.frame(summary(m1)$coefficients),
+                             confint(object=m1)) %>%
+  dplyr::select(Estimate, SE = `Std. Error`,LowerCI = `2.5 %`, UpperCI = `97.5 %`, t=`t value`, p=`Pr(>|t|)`) %>%
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall=3))) %>% 
+  mutate(across(.cols = c(Estimate:t), ~ format(round(.x, 2), nsmall=2))) %>% 
+  mutate(`95% CI`=paste0("[",LowerCI, ", ",UpperCI, "]"))%>%
+  dplyr::select(Estimate, SE, `95% CI`, t, p )%>%
+  mutate(p=as.numeric(p))%>%
+  mutate(p=replace(p, p==0.000, "<0.001"))
+
+write.csv(model_demo_lm, file = "saves/m1_demo_lm.csv")
+```
+
+
+
+CI for plot
+```{r}
+
+occlusion.demonstration$sex.code <- as.vector(scale(as.numeric(as.factor(occlusion.demonstration$sex)), center=TRUE)) 
+m1.plot<-lm(looking_time~condition+sex.code+z.age, data=occlusion.demonstration)
+
+pred.data=data.frame(condition=levels(as.factor(occlusion.demonstration$condition)),z.age=0, sex.code=0)
+
+ci.plot=predict.lm(object=m1.plot, newdata=pred.data,
+interval="confidence")
+occlusion.demonstration <- occlusion.demonstration %>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+levels(occlusion.demonstration$con2)
+occlusion.demonstration$con_num <- jitter(as.numeric(as.factor(occlusion.demonstration$con2), amount = .00001))
+
+ci.plot=cbind(as.data.frame(ci.plot), con2=as.factor(levels(occlusion.demonstration$con2) ))
+```
+
+
+#### Plot the looking time data
+```{r}
+library(gghalves)
+library(ggsignif)
+
+
+p.demo <- ggplot(data = occlusion.demonstration, aes(x = con2,  group=con2)) +
+  geom_point(data = occlusion.demonstration %>% filter(con2 == "Reappear"), aes(x = con_num, y= looking_time), color = "darkorange", size = 1.5, alpha = .4 ) +
+    geom_point(data = occlusion.demonstration %>% filter(con2 == "Disappear"), aes(x = con_num, y= looking_time), color = "dodgerblue", size = 1.5, alpha = .4) +
+
+   geom_half_boxplot(
+     data = occlusion.demonstration %>% filter(con2 == "Reappear"), aes(x = con_num, y = looking_time), position = position_nudge(x = -0.3), 
+     side = "l",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'darkorange', alpha = .5) +
+  
+     geom_half_boxplot(
+     data = occlusion.demonstration %>% filter(con2 == "Disappear"), aes(x = con_num, y = looking_time), position = position_nudge(x = 0.3), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'dodgerblue', alpha = 1) +
+    geom_errorbar(data = ci.plot %>% filter(con2 == "Disappear"), aes(x=2, ymin=lwr, ymax=upr), color = "dodgerblue", width=0.05, position = position_nudge(x = 0.25) ) +
+   geom_errorbar(data = ci.plot %>% filter(con2 == "Reappear"), aes(x=1, ymin=lwr, ymax=upr), color = "darkorange", width=0.05, position = position_nudge(x = -0.25) ) +
+     geom_point(data = ci.plot %>% filter(con2 == "Disappear"), aes(x=2, y=fit), color = "dodgerblue", pch=1, position = position_nudge(x = 0.25) ) +
+   geom_point(data = ci.plot %>% filter(con2 == "Reappear"), aes(x=1, y=fit), color = "darkorange", pch=1, position = position_nudge(x = -0.25) ) +
+   # geom_text(x = 1.4, y = 0.8, label = "***") +
+   # geom_segment(aes(x=0.9, xend=1.9, y = 0.78, yend=0.78))+
+  # Define additional settings
+  xlab("") +
+  ylab("Looking time (in s)") +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Reappear", "Disappear"), limits = c(0.5,2.5)) +
+  ylim(0, 30) +
+  theme_classic()
+
+p.demo
+
+ggsave(p.demo , filename = "graphics/occlusion_demo_phase_looking_times.png", width = 7, height = 8, scale = 0.6)
+
+```
+
+
+
+
+# Exploration phase
+
+## Load exploration data
+```{r}
+occlusion.exploration<-read.csv("data/voe_exploration_exp3_exploration_data.csv")
+```
+
+### data preparation
+```{r}
+occlusion.exploration$z.age<-as.vector(scale(occlusion.exploration$age, center = TRUE, scale=TRUE))
+
+occlusion.exploration$prop_looking_target_distractor_scaled <- (occlusion.exploration$prop_looking_target_distractor*(length(occlusion.exploration$prop_looking_target_distractor) - 1) + 0.5)/length(occlusion.exploration$prop_looking_target_distractor)#transform DV to exclude 0 and 1s
+max(occlusion.exploration$prop_looking_target_distractor_scaled, na.rm=TRUE)
+
+occlusion.exploration$prop_looking_target_phase_scaled <- (occlusion.exploration$prop_looking_target_phase*(length(occlusion.exploration$prop_looking_target_phase) - 1) + 0.5)/length(occlusion.exploration$prop_looking_target_phase)#transform DV to exclude 0 and 1s
+max(occlusion.exploration$prop_looking_target_phase_scaled, na.rm=TRUE)
+
+
+occlusion.exploration$prop_looking_apparatus_phase_scaled <- (occlusion.exploration$prop_looking_apparatus_phase*(length(occlusion.exploration$prop_looking_apparatus_phase) - 1) + 0.5)/length(occlusion.exploration$prop_looking_apparatus_phase)#transform DV to exclude 0 and 1s
+min(occlusion.exploration$prop_looking_apparatus_phase_scaled, na.rm=TRUE)
+
+
+```
+### Beta model of proportion target interaction time (relative to complete interaction times)
+```{r}
+
+m2.beta <- betareg(prop_looking_target_distractor_scaled~condition+sex+z.age, data=occlusion.exploration)
+
+m2.beta.null <- betareg(prop_looking_target_distractor_scaled ~ sex+z.age, data=occlusion.exploration)
+
+lrtest(m2.beta, m2.beta.null)
+
+summary(m2.beta)
+
+m2.beta.ci <- confint(m2.beta)
+```
+
+#### check for overdispersion
+```{r}
+overdisp.test(m2.beta)
+```
+#### check for collinearity
+```{r}
+library(car)
+xx=lm(prop_looking_target_distractor_scaled ~ sex+z.age, data=occlusion.exploration)
+vif(xx)
+```
+
+#### output table
+
+```{r}
+
+model2_exploration<- bind_cols(as.data.frame(summary(m2.beta)$coefficients$mean),
+                             m2.beta.ci[1:4,]) %>%
+  dplyr::select(Estimate, SE = `Std. Error`,LowerCI = `2.5 %`, UpperCI = `97.5 %`, z=`z value`, p=`Pr(>|z|)`) %>%
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall=3))) %>% 
+  mutate(across(.cols = c(Estimate:z), ~ format(round(.x, 2), nsmall=2))) %>% 
+  mutate(`95% CI`=paste0("[",LowerCI, ", ",UpperCI, "]"))%>%
+  dplyr::select(Estimate, SE, `95% CI`, z, p )%>%
+  mutate(p=as.numeric(p))%>%
+  mutate(p=replace(p, p==0.000, "<0.001"))
+
+write.csv(model2_exploration, file = "saves/m2_exploration_rel_comp_int.csv")
+```
+
+CI for plot
+```{r}
+
+occlusion.exploration$sex.code <- as.vector(scale(as.numeric(as.factor(occlusion.exploration$sex)), center=TRUE)) 
+occlusion.exploration$condition<-as.factor(occlusion.exploration$condition)
+occlusion.exploration$condition.dummy<-as.vector(as.numeric(occlusion.exploration$condition==levels(as.factor(occlusion.exploration$condition))[2]))
+
+m2.plot<-betareg(prop_looking_target_distractor_scaled~condition+sex.code+z.age, data=occlusion.exploration)
+summary(m2.plot)
+
+pred.data=data.frame(condition=levels(as.factor(occlusion.exploration$condition)),z.age=0, sex.code=0)
+
+ci.plot.m2<-cbind(pred.data, fit=predict(m2.plot, newdata=pred.data, type="response"),predict(m2.plot, newdata=pred.data, type = "quantile", at = c(0.025, 0.975)))%>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+residuals.betareg <- function(object, type="pearson") {myres(object)}
+fitted(m2.plot)
+b <- Boot(m2.plot, R = 1000) 
+summary(b)
+
+occlusion.exploration <- occlusion.exploration %>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+levels(occlusion.exploration$con2)
+occlusion.exploration$con_num <- jitter(as.numeric(as.factor(occlusion.exploration$con2), amount = .00001))
+
+```
+
+
+
+
+#### Plot the interaction time data (target relative to complete interaction time)
+```{r}
+library(gghalves)
+library(ggsignif)
+
+
+p.target_rel_obj <- ggplot(data = occlusion.exploration, aes(x = con2,  group=con2)) +
+  geom_point(data = occlusion.exploration %>% filter(con2 == "Reappear"), aes(x = con_num, y= prop_looking_target_distractor), color = "darkorange", size = 1.5, alpha = .4 ) +
+    geom_point(data = occlusion.exploration %>% filter(con2 == "Disappear"), aes(x = con_num, y= prop_looking_target_distractor), color = "dodgerblue", size = 1.5, alpha = .4) +
+
+   geom_half_boxplot(
+     data = occlusion.exploration %>% filter(con2 == "Reappear"), aes(x = con_num, y = prop_looking_target_distractor), position = position_nudge(x = -0.3), 
+     side = "l",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'darkorange', alpha = .5) +
+  
+     geom_half_boxplot(
+     data = occlusion.exploration %>% filter(con2 == "Disappear"), aes(x = con_num, y = prop_looking_target_distractor), position = position_nudge(x = 0.3), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'dodgerblue', alpha = 1) +
+   # geom_errorbar(data = ci.plot.m2 %>% filter(con2 == "Disappear"), aes(x=2, ymin=q_0.025, ymax=q_0.975), color = "dodgerblue", width=0.05, position = position_nudge(x = 0.25) ) +
+  # geom_errorbar(data = ci.plot.m2 %>% filter(con2 == "Reappear"), aes(x=1, ymin=q_0.025, ymax=q_0.975), color = "darkorange", width=0.05, position = position_nudge(x = -0.25) ) +
+     geom_point(data = ci.plot.m2 %>% filter(con2 == "Disappear"), aes(x=2, y=fit), color = "dodgerblue", pch=1, position = position_nudge(x = 0.25) ) +
+   geom_point(data = ci.plot.m2 %>% filter(con2 == "Reappear"), aes(x=1, y=fit), color = "darkorange", pch=1, position = position_nudge(x = -0.25) ) +
+   # geom_text(x = 1.4, y = 0.8, label = "***") +
+   # geom_segment(aes(x=0.9, xend=1.9, y = 0.78, yend=0.78))+
+  # Define additional settings
+  xlab("") +
+  ylab("Target / Object interaction time") +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Reappear", "Disappear"), limits = c(0.5,2.5)) +
+  ylim(0, 1) +
+  theme_classic()
+
+p.target_rel_obj
+
+ggsave(p.target_rel_obj , filename = "graphics/occlusion_exploration_target_interaction_rel_obj.png", width = 7, height = 8, scale = 0.6)
+
+```
+
+
+### Beta model of proportion target interaction time (relative to complete interaction phase duration)
+```{r}
+
+m3.beta <- betareg(prop_looking_target_phase_scaled~condition+sex+z.age, data=occlusion.exploration)
+
+m3.beta.null <- betareg(prop_looking_target_phase_scaled ~ sex+z.age, data=occlusion.exploration)
+
+lrtest(m3.beta, m3.beta.null)
+
+summary(m3.beta)
+m3.beta.ci <- confint(m3.beta)
+```
+
+#### check for overdispersion
+```{r eval=FALSE}
+overdisp.test(m3.beta)
+```
+#### Check for collinearity
+```{r}
+library(car)
+xx=lm(prop_looking_target_phase_scaled ~ condition+ sex+z.age, data=occlusion.exploration)
+vif(xx)
+```
+
+
+#### output table
+
+```{r}
+
+model3_exploration<- bind_cols(as.data.frame(summary(m3.beta)$coefficients$mean),
+                             m3.beta.ci[1:4,]) %>%
+  dplyr::select(Estimate, SE = `Std. Error`,LowerCI = `2.5 %`, UpperCI = `97.5 %`, z=`z value`, p=`Pr(>|z|)`) %>%
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall=3))) %>% 
+  mutate(across(.cols = c(Estimate:z), ~ format(round(.x, 2), nsmall=2)))  %>% 
+  mutate(`95% CI`=paste0("[",LowerCI, ", ",UpperCI, "]"))%>%
+  dplyr::select(Estimate, SE, `95% CI`, z, p )%>%
+  mutate(p=as.numeric(p))%>%
+  mutate(p=replace(p, p==0.000, "<0.001"))
+
+write.csv(model3_exploration, file = "saves/m3_exploration_rel_phase.csv")
+```
+
+CI for plot
+```{r}
+
+occlusion.exploration$sex.code <- as.vector(scale(as.numeric(as.factor(occlusion.exploration$sex)), center=TRUE)) 
+occlusion.exploration$condition<-as.factor(occlusion.exploration$condition)
+
+m3.plot <- betareg(prop_looking_target_phase_scaled~condition+sex.code+z.age, data=occlusion.exploration)
+
+summary(m3.plot)
+
+pred.data=data.frame(condition=levels(as.factor(occlusion.exploration$condition)),z.age=0, sex.code=0)
+
+ci.plot.m3<-cbind(pred.data, fit=predict(m3.plot, newdata=pred.data, type="response"),predict(m3.plot, newdata=pred.data, type = "quantile", at = c(0.025, 0.975)))%>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+residuals.betareg <- function(object, type="pearson") fitted(m3.plot)
+b <- Boot(m3.plot, R = 1000) 
+
+summary(b)
+
+occlusion.exploration <- occlusion.exploration %>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+levels(occlusion.exploration$con2)
+occlusion.exploration$con_num <- jitter(as.numeric(as.factor(occlusion.exploration$con2), amount = .00001))
+
+```
+#### Plot the interaction time data (target relative to phase duration)
+```{r}
+library(gghalves)
+library(ggsignif)
+
+
+p.target_rel_phase <- ggplot(data = occlusion.exploration, aes(x = con2,  group=con2)) +
+  geom_point(data = occlusion.exploration %>% filter(con2 == "Reappear"), aes(x = con_num, y= prop_looking_target_phase_scaled), color = "darkorange", size = 1.5, alpha = .4 ) +
+    geom_point(data = occlusion.exploration %>% filter(con2 == "Disappear"), aes(x = con_num, y= prop_looking_target_phase_scaled), color = "dodgerblue", size = 1.5, alpha = .4) +
+
+   geom_half_boxplot(
+     data = occlusion.exploration %>% filter(con2 == "Reappear"), aes(x = con_num, y = prop_looking_target_phase_scaled), position = position_nudge(x = -0.3), 
+     side = "l",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'darkorange', alpha = .5) +
+  
+     geom_half_boxplot(
+     data = occlusion.exploration %>% filter(con2 == "Disappear"), aes(x = con_num, y = prop_looking_target_phase_scaled), position = position_nudge(x = 0.3), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'dodgerblue', alpha = 1) +
+   # geom_errorbar(data = ci.plot.m3 %>% filter(con2 == "Disappear"), aes(x=2, ymin=q_0.025, ymax=q_0.975), color = "dodgerblue", width=0.05, position = position_nudge(x = 0.25) ) +
+  # geom_errorbar(data = ci.plot.m3 %>% filter(con2 == "Reappear"), aes(x=1, ymin=q_0.025, ymax=q_0.975), color = "darkorange", width=0.05, position = position_nudge(x = -0.25) ) +
+     geom_point(data = ci.plot.m3 %>% filter(con2 == "Disappear"), aes(x=2, y=fit), color = "dodgerblue", pch=1, position = position_nudge(x = 0.25) ) +
+   geom_point(data = ci.plot.m3 %>% filter(con2 == "Reappear"), aes(x=1, y=fit), color = "darkorange", pch=1, position = position_nudge(x = -0.25) ) +
+   # geom_text(x = 1.4, y = 0.8, label = "***") +
+   # geom_segment(aes(x=0.9, xend=1.9, y = 0.78, yend=0.78))+
+  # Define additional settings
+  xlab("") +
+  ylab("Target interaction / Exploration phase") +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Reappear", "Disappear"), limits = c(0.5,2.5)) +
+  ylim(0, 1) +
+  theme_classic()
+
+p.target_rel_phase
+
+ggsave(p.target_rel_phase , filename = "graphics/occlusion_exploration_target_interaction_rel_phase.png", width = 7, height = 8, scale = 0.6)
+
+```
+
+### first choice analysis
+
+#### Load first choice data
+```{r}
+occlusion.exploration.fc<-read.csv("data/voe_exploration_exp3_exploration_firstchoice_data.csv")
+```
+
+#### data preparation
+```{r}
+occlusion.exploration.fc$z.age<-as.vector(scale(occlusion.exploration.fc$age, center = TRUE, scale=TRUE))
+
+occlusion.exploration.fc %>% group_by(condition)%>%summarise(sum(target_choice), length(target_choice))
+```
+
+```{r}
+m4.binomial<-glm(first_choice_target~condition+sex+z.age, family=binomial, data=occlusion.exploration.fc)
+
+summary(m4.binomial)
+drop1.m4<-drop1(m4.binomial, test="Chisq")
+```
+
+#### Collinearity check
+```{r}
+library(car)
+xx=lm(first_choice_target~condition+sex+z.age,  data=occlusion.exploration.fc)
+vif(xx)
+```
+
+
+#### Model stability
+```{r}
+cbind(coef(m4.binomial), coef(m4.binomial)+t(apply(X=dfbeta(m4.binomial), MARGIN=2, FUN=range)))
+# min and max of model estimates
+```
+
+#### Confidence intervals
+```{r}
+cbind(orig=coefficients(m4.binomial), confint(object=m4.binomial))
+m4.binomial.ci <- confint(m4.binomial)
+```
+#### output table
+
+```{r}
+
+model4_exploration_fc<- bind_cols(as.data.frame(summary(m4.binomial)$coefficients),
+                             m4.binomial.ci[1:4,],
+                             drop1.m4) %>%
+                             dplyr::select(Estimate, SE = `Std. Error`,LowerCI = `2.5 %`, UpperCI = `97.5 %`, LRT, p=`Pr(>Chi)`) %>%
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall=3))) %>% 
+  mutate(across(.cols = c(Estimate:LRT), ~ format(round(.x, 2), nsmall=2)))%>% 
+  mutate(`95% CI`=paste0("[",LowerCI, ", ",UpperCI, "]"))%>%
+  dplyr::select(Estimate, SE, `95% CI`, LRT, p )%>%
+  mutate(p=as.numeric(p))%>%
+  mutate(p=replace(p, p==0.000, "<0.001"))
+
+write.csv(model4_exploration_fc, file = "saves/m4_exploration_fc.csv")
+```
+### target choice (did they interact with the target at all)
+```{r}
+m5.binomial<-glm(target_choice~condition+sex+z.age, family=binomial, data=occlusion.exploration.fc)
+
+summary(m5.binomial)
+drop1.m5<-drop1(m5.binomial, test="Chisq")
+```
+
+--> not further analysed due to complete separation issue
+
+## Play behavior
+
+### Load play data
+```{r}
+occlusion.exploration.play<-read.csv("data/voe_exploration_exp3_exploration_play_data.csv")
+```
+
+### data preparation
+```{r}
+occlusion.exploration.paw <- occlusion.exploration.play %>%
+  filter(Value=="paw")
+occlusion.exploration.paw$z.age<-as.vector(scale(occlusion.exploration.paw$age, center = TRUE, scale=TRUE))
+
+occlusion.exploration.drop <- occlusion.exploration.play %>%
+  filter(Value=="drop") %>%
+  dplyr::select(Subject, play, condition, sex) %>%
+  full_join(occlusion.exploration)
+
+occlusion.exploration.drop$z.age<-as.vector(scale(occlusion.exploration.drop$age, center = TRUE, scale=TRUE))
+
+
+```
+
+#### plotting play
+```{r}
+ggplot(occlusion.exploration.play, aes(x=condition, y=play))+
+  geom_boxplot()+
+  facet_wrap(~Value)
+```
+### Pawing
+--> not further analysed due to interobserver reliability
+
+### Dropping
+
+```{r}
+occlusion.exploration.drop2 <- occlusion.exploration.drop%>%
+  filter(exploration_time_target>0)
+
+library(MASS)
+m8.nb<-glm.nb(play~condition+sex+z.age, data=occlusion.exploration.drop)
+
+m9.nb<-glm.nb(play~condition+sex+z.age+offset(log(exploration_time_target)), data=occlusion.exploration.drop2)
+
+summary(m8.nb)
+drop1.m8<-drop1(m8.nb, test="Chisq")
+
+summary(m9.nb)
+drop1.m9<-drop1(m9.nb, test="Chisq")
+```
+
+Check overdispersion
+```{r}
+overdisp.test(m8.nb)
+```
+
+
+#### Collinearity check
+```{r}
+library(car)
+xx=lm(play~condition+sex+z.age,  data=occlusion.exploration.drop)
+vif(xx)
+```
+
+
+#### Model stability
+```{r}
+cbind(coef(m8.nb), coef(m8.nb)+t(apply(X=dfbeta(m8.nb), MARGIN=2, FUN=range)))
+# min and max of model estimates
+```
+
+#### Confidence intervals
+```{r}
+cbind(orig=coefficients(m8.nb), confint(object=m8.nb))
+m8.nb.ci <- confint(m8.nb)
+```
+#### output table
+
+```{r}
+
+model8_dropping_nb<- bind_cols(as.data.frame(summary(m8.nb)$coefficients),
+                             m8.nb.ci [1:4,],
+                             drop1.m8) %>%
+                             dplyr::select(Estimate, SE = `Std. Error`,LowerCI = `2.5 %`, UpperCI = `97.5 %`, LRT, p=`Pr(>Chi)`) %>%
+  mutate(across(.cols = c(p), ~ format(round(.x, 3), nsmall=3))) %>% 
+  mutate(across(.cols = c(Estimate:LRT), ~ format(round(.x, 2), nsmall=2)))%>% 
+  mutate(`95% CI`=paste0("[",LowerCI, ", ",UpperCI, "]"))%>%
+  dplyr::select(Estimate, SE, `95% CI`, LRT, p )%>%
+  mutate(p=as.numeric(p))%>%
+  mutate(p=replace(p, p==0.000, "<0.001"))
+
+write.csv(model8_dropping_nb, file = "saves/m8_exploration_dropping.csv")
+```
+```{r}
+
+occlusion.exploration.drop$sex.code <- as.vector(scale(as.numeric(as.factor(occlusion.exploration.drop$sex)), center=TRUE)) 
+occlusion.exploration.drop$condition<-as.factor(occlusion.exploration.drop$condition)
+m8.plot<-glm.nb(play~condition+sex.code+z.age, data=occlusion.exploration.drop)
+
+str(occlusion.exploration.drop)
+ci.plot.m8=ci.glm(model.res=m8.plot, level=0.95, use="condition")%>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+
+occlusion.exploration.drop <- occlusion.exploration.drop %>%
+  mutate(con2 = fct_recode(as.factor(condition), "Disappear"="incongruent", "Reappear"="congruent"))
+
+levels(occlusion.exploration.drop$con2)
+occlusion.exploration.drop$con_num <- jitter(as.numeric(as.factor(occlusion.exploration.drop$con2), amount = .00001))
+
+```
+
+#### Plot the dropping occurences
+```{r}
+library(gghalves)
+library(ggsignif)
+
+
+p.target_drops <- ggplot(data = occlusion.exploration.drop, aes(x = con2,  group=con2)) +
+  geom_point(data = occlusion.exploration.drop %>% filter(con2 == "Reappear"), aes(x = con_num, y= play), color = "darkorange", size = 1.5, alpha = .4 ) +
+    geom_point(data = occlusion.exploration.drop %>% filter(con2 == "Disappear"), aes(x = con_num, y= play), color = "dodgerblue", size = 1.5, alpha = .4) +
+
+   geom_half_boxplot(
+     data = occlusion.exploration.drop %>% filter(con2 == "Reappear"), aes(x = con_num, y = play), position = position_nudge(x = -0.3), 
+     side = "l",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'darkorange', alpha = .5) +
+  
+     geom_half_boxplot(
+     data = occlusion.exploration.drop %>% filter(con2 == "Disappear"), aes(x = con_num, y = play), position = position_nudge(x = 0.3), 
+     side = "r",outlier.shape = NA, center = TRUE, errorbar.draw = TRUE, width = .05, 
+     fill = 'dodgerblue', alpha = 1) +
+    geom_errorbar(data = ci.plot.m8 %>% filter(con2 == "Disappear"), aes(x=2, ymin=lwr, ymax=upr), color = "dodgerblue", width=0.05, position = position_nudge(x = 0.25) ) +
+   geom_errorbar(data = ci.plot.m8 %>% filter(con2 == "Reappear"), aes(x=1, ymin=lwr, ymax=upr), color = "darkorange", width=0.05, position = position_nudge(x = -0.25) ) +
+     geom_point(data = ci.plot.m8 %>% filter(con2 == "Disappear"), aes(x=2, y=orig), color = "dodgerblue", pch=1, position = position_nudge(x = 0.25) ) +
+   geom_point(data = ci.plot.m8 %>% filter(con2 == "Reappear"), aes(x=1, y=orig), color = "darkorange", pch=1, position = position_nudge(x = -0.25) ) +
+   # geom_text(x = 1.4, y = 0.8, label = "***") +
+   # geom_segment(aes(x=0.9, xend=1.9, y = 0.78, yend=0.78))+
+  # Define additional settings
+  xlab("") +
+  ylab("Dropping behaviors") +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Reappear", "Disappear"), limits = c(0.5,2.5)) +
+  #ylim(0, 1) +
+  theme_classic()
+
+p.target_drops
+
+ggsave(p.target_drops , filename = "graphics/occlusion_exploration_target_drops.png", width = 7, height = 8, scale = 0.6)
+
+```
+Combining plots
+```{r}
+library(cowplot)
+pg<-plot_grid(p.demo, p.target_rel_obj, p.target_rel_phase, p.target_drops, labels=c("A", "B", "C", "D"))
+pg
+ggsave(pg, filename = "graphics/occlusion_plot_grid.png", width=10, height=10, scale=0.7)
+```
+
+## Reli Analysis
+
+
+### Demo phase
+
+```{r}
+occlusion.data.demo.reli <- read.csv("data/voe_exploration_exp3_reli.csv")
+```
+
+```{r}
+library(psych)
+
+ICC(occlusion.data.demo.reli%>%dplyr::select(looking_time_reli, looking_time), missing=TRUE)
+ICC(occlusion.data.demo.reli%>%dplyr::select(phase_reli, phase), missing=TRUE)
+```
+
+### Exploration phase
+
+```{r}
+occlusion_exp_data_reli <- read.csv("data/voe_exploration_exp3_reli_exploration.csv")
+```
+
+```{r}
+library(psych)
+ICC(occlusion_exp_data_reli%>%dplyr::select(exploration_time_target_reli, exploration_time_target), missing=TRUE)
+ICC(occlusion_exp_data_reli%>%dplyr::select(exploration_time_apparatus_reli, exploration_time_apparatus), missing=TRUE)
+ICC(occlusion_exp_data_reli%>%dplyr::select(exploration_time_distractor_reli, exploration_time_distractor), missing=TRUE)
+```
+### Exploration phase - first choice
+
+```{r}
+occlusion.exploration.fc.reli <- read.csv("data/voe_exploration_exp3_reli_fc.csv")
+```
+
+
+```{r}
+
+cohen.kappa(cbind(occlusion.exploration.fc.reli$first_choice_target_reli,occlusion.exploration.fc.reli$first_choice_target))
+
+```
+
+### Exploration phase - play
+
+```{r}
+occlusion.exploration.play_reli <- read.csv("data/voe_exploration_exp3_reli_play.csv")
+```
+
+
+```{r}
+occlusion.exploration.play_reli.paw <- occlusion.exploration.play_reli %>%
+  filter(Value=="paw")
+
+occlusion.exploration.play_reli.drop <- occlusion.exploration.play_reli %>%
+  filter(Value=="drop")
+
+```
+
+```{r}
+library(psych)
+ICC(occlusion.exploration.play_reli.paw%>%dplyr::select(play, play_reli), missing=TRUE)
+ICC(occlusion.exploration.play_reli.drop%>%dplyr::select(play, play_reli), missing=TRUE)
+
+```
+
+```{r}
+save.image(file = "voe_exploration_analysis.Rdata")
+```
+
+
+

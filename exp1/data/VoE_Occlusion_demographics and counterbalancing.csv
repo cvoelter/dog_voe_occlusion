@@ -1,0 +1,15 @@
+Dog_ID,Date1,Date2,EDF1,EDF2,Cal_tar1,Cal_tar2,Name,Breed,sex,neutered,birth_date,age,Order_condition
+6,23/09/2020,29/09/2020,Mavie_1,Mavie_2,trigger_q_64,b_calibug50px,Mavie,Border Collie,f,no,09.07.2019,14,test_first
+3,18/08/2020,25/08/2020,Vega_1,Vega_2,calibug_50,w_calibug64px,Vega,Border Collie,f,no,09.07.2019,13,control_first
+7,06/10/2020,21/10/2020,Beny_1,Beny_2,starjumps50,duck64,Beny,Mix,m,yes,28.04.2019,17,test_first
+12,23/10/2020,30/10/2020,George_1,George_2,w_cuckoo32,w_calibug32px,George4,Collie,m,no,12.04.2019,18,control_first
+11,16/10/2020,27/10/2020,Ace_1,Ace_3,w_calibug32px,w_cuckoo64,Ace3,Border Collie,m,yes,15.03.2019,19,test_first
+2,18/08/2020,24/08/2020,Hetti_1,Hetti_2,star32,cuckoo_24,Hetti,Mix,f,no,10.01.2019,19,control_first
+1,27/07/2020,05/08/2020,Timo_1,Timo_2,Calibug_32,Calibug_32,Timo2,Mix,m,no,01.02.2019,17,control_first
+5,24/08/2020,01/10/2020,Melody_1,Melody_2,cal_star_white_bg_long,w_calibug64px,Melody,Labrador Retriever,f,yes,14.08.2018,24,test_first
+9,13/10/2020,21/10/2020,Georgia1,Georgia2,cal_star_white_bg_long,cal_star_white_bg_long,Georgia,Labrador Retriever,f,yes,29.12.2017,33,test_first
+4,24/08/2020,25/09/2020,Lilly_1,Lilly_2,cuckoo_32,trigger_q_32,Lilly9,Mix,f,yes,07.09.2017,35,control_first
+8,08/10/2020,15/10/2020,Dawin_1,Dawin_2,trigger_q_32,trigger_q_32,Dawin,Border Collie,m,no,01.02.2016,56,control_first
+13,02/11/2020,11/11/2020,Maylo_1,Maylo_2,w_calibug64px,w_cuckoo64,Maylo,Mix,m,yes,13.11.2015,59,test_first
+10,14/10/2020,22/10/2020,Asta_1,Asta_2,w_calibug64,w_cuckoo64,Asta2,Border Collie,f,no,05/10/2018,24,test_first
+14,10/12/2020,16/12/2020,Cheynna1,Cheynna2,w_cuckoo64,w_calibug32px,Cheynna,Australian Shepherd,f,no,28/04/2014,79,test_first

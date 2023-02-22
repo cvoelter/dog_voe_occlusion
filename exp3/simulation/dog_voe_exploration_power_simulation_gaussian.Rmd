@@ -1,0 +1,138 @@
+---
+title: "Power simulation: From VoE to exploation"
+author: "Christoph Völter"
+date: "09/01/2022"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_depth: 4
+    toc_float: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(tidyverse)
+library(cowplot)
+library("gghalves")
+library(ggthemes)
+
+#load(".RData")
+
+```
+
+## Generate data
+
+```{r echo=FALSE, include=FALSE}
+set.seed(23)
+n.subject <- 68# number subjects
+n<-68 #sample size
+n.per.subject <- 1 # observations per subject
+n.per.condition <- 1 # observations per subject and condition
+subj.id <- as.factor(paste("subj", 1:n.subject, sep = "."))
+age.range=c(1:13)
+
+start.data <- data.frame(subj.id)
+xdata=data.frame(expand.grid(condition=c("con", "inc"), sex=c("F", "M")))
+
+start.data<-cbind(start.data, xdata)
+m.mat=model.matrix(object=~condition+sex, data=start.data)
+```
+
+
+```{r echo=FALSE, include=FALSE}
+coefs=rep(x=0, times=ncol(m.mat))#begin with vector filled with 0s
+names(coefs)=colnames(m.mat)#name it
+coefs["(Intercept)"]=5#set intercept to 3
+coefs["conditioninc"]=4#and effect of incongruent condition to 3
+resid.sd=5#give residual standard deviation a value
+rv=m.mat[, names(coefs)]%*%coefs+rnorm(n=n, sd=resid.sd)
+rv[rv < 0] <- 0   
+par(mar=c(2.7, 2.7, 0.2, 0.2), mgp=c(1.5, 0.3, 0),
+tcl=-0.15, las=1, cex.lab=0.7, cex.axis=0.5)
+
+plot(start.data$condition, rv)
+
+```
+
+## Simulation
+
+```{r}
+n.simus=10000#number simulations
+res.con=rep(x=NA, time=n.simus)
+res.sex=rep(x=NA, time=n.simus)
+res.age=rep(x=NA, time=n.simus)
+
+set.seed(1)
+xdata<-start.data
+
+for(i in 1:n.simus){
+#sample number participants:
+#n.part=sample(x=range.n.part, size=n.courses, replace=T)
+  
+age <- sample(x = age.range, size = length(unique(xdata$subj.id)), replace = T)
+xdata$age <- as.numeric(age[as.numeric(xdata$subj.id)])
+xdata$z.age <- as.vector(scale(xdata$age))
+  
+#generate response:
+resp=m.mat[, names(coefs)]%*%coefs+rnorm(n=n, sd=resid.sd)
+resp[resp < 0] <- 0   
+#fit model:
+model.res=summary(lm(resp~condition+sex+z.age, data=xdata))$coefficients
+#determine and store result:
+res.con[i]=model.res["conditioninc", "Pr(>|t|)"]<=0.05
+res.sex[i]=model.res["sexM", "Pr(>|t|)"]<=0.05
+res.age[i]=model.res["z.age", "Pr(>|t|)"]<=0.05
+}
+
+mean(res.con)
+mean(res.sex)
+mean(res.age)
+```
+
+
+## Evaluation of results 
+
+## Only models that converged are evaluated from here on:  
+
+```{r include=FALSE}
+all.res2=subset(all.res, warns.full==0)
+```
+
+
+### How many models converged, have a significant full-null model comparison, and a significant LRT of condition?  
+```{r echo=FALSE}
+n.converged<- all.res2%>%
+      summarise(n.converged=length(lrt.p.con))
+
+
+lrt.data2 <- all.res2 %>%
+  filter(full.null.p<0.05)%>%
+  group_by(inc.per,con.per) %>%
+  summarise(lrt.p.con.median = median(lrt.p.con), 
+            lrt.p.age.median = median(lrt.age.p),
+            n.sign.lrt.con = length(lrt.p.con[lrt.p.con < 0.05]),
+            n.sign.lrt.age = length(lrt.age.p[lrt.age.p < 0.05]),
+            n.lrt = n.simus,
+            proportion.sign.lrt.con = length(lrt.p.con[lrt.p.con < 0.05]) / n.simus,
+            proportion.sign.lrt.age = length(lrt.age.p[lrt.age.p < 0.05]) / n.simus)
+
+lrt.data2
+```
+#### Plotting the proportion of significant LRTs for the predictor variable condition ONLY based on models that converged and with a significant full-null model comparison
+
+```{r echo=FALSE}
+p.con.power <- ggplot(data = lrt.data2, aes(x= as.factor(inc.per),y = proportion.sign.lrt.con, fill=as.factor(con.per))) +
+  geom_bar(stat="identity", color="black", position=position_dodge())+
+  scale_y_continuous(breaks=seq(0,1,0.2), limits=c(0, 1))+
+  geom_hline(yintercept = 0.8, colour = "black", lwd = 1.1, lty = 2) +
+    geom_hline(yintercept = 0.05, colour = "darkgrey", lwd = 1.1, lty = 4) +
+  scale_fill_manual(values=c("dodgerblue", "darkorange"))+
+  labs(fill = "congruent condition", y="Power", x= "incongruent condition") +
+  theme_few()#+
+  #theme(legend.position="none")
+p.con.power
+
+ggsave(p.con.power, filename = "./graphics/voe_exploration_choice_simulation_binomial_glm.png", scale = 0.8, height = 5, width = 7)
+```

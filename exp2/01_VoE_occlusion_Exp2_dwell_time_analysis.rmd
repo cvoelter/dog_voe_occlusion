@@ -1,0 +1,171 @@
+---
+title: VoE occlusion Exp 1: Dwell time analysis
+author: Christoph Voelter
+date: 24/08/2022
+output: html_document
+---
+ 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+rm(list=ls())
+library(tidyverse)
+library(summarytools)
+library(exactRankTests)
+library(ggpubr)
+
+```
+
+### Summary
+
+
+Read Data
+```{r}
+end.ip.orig.data <- read_delim("data/ET_VoE_occlusion2screens_IA_report_whole_screen_end_IP.txt", na=".", delim="\t")
+
+demo.data <- read_csv("data/VoE_occlusion_2screens_demographics and counterbalancing.csv")%>%
+  mutate(EDF1=fct_recode(as.factor(EDF1), "Georgia_1"="Georgia1", "Cheynna_1"="Cheynna1"))%>%
+  separate(EDF1, c("subject", "num"), sep="_")
+
+
+end.ip.data <- end.ip.orig.data %>%
+  select(Session_Name_, IP_LABEL, IA_LABEL,IA_ID, Trial_Index_, condition, phase, session,  video_file, video_id, video_latency, DATA_FILE,  IA_AREA, IA_AVERAGE_FIX_PUPIL_SIZE,  IA_DWELL_TIME, "IA_DWELL_TIME_%", IA_FIXATION_COUNT, IA_MAX_FIX_PUPIL_SIZE, INTEREST_AREA_FIXATION_SEQUENCE, TRIAL_DWELL_TIME, TRIAL_FIXATION_COUNT, TRIAL_IA_COUNT, TRIAL_TOTAL_VISITED_IA_COUNT )%>%
+   filter(!(DATA_FILE=="Ace_2.edf" & Trial_Index_!=4))%>%
+  mutate(trial=ifelse(DATA_FILE=="Ace_2.edf" & Trial_Index_==4, 5, Trial_Index_))%>% #recoding of trial number to account for a dog that did not complete his first session, session was repeated with this dog
+  mutate(Session_Name_=fct_recode(Session_Name_, Georgia_1="Georgia1",Georgia_2="Georgia2", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(Session_Name_, c("subject", "session.num"), sep = "_") %>%
+  mutate(condition_trial=paste(condition, "_", trial))%>%
+  full_join(demo.data)
+ # rename(trial="Trial_Index_")
+```
+
+
+```{r}
+#checks:
+view(dfSummary(end.ip.data))
+
+table(end.ip.data$trial, end.ip.data$subject)
+table(end.ip.data$condition, end.ip.data$subject)
+table(end.ip.data$session.num, end.ip.data$subject)
+table(end.ip.data$condition, end.ip.data$TRIAL_TOTAL_VISITED_IA_COUNT)
+
+```
+
+End IP
+```{r}
+test.IP.end.data <- end.ip.data %>%
+  filter(condition!="hab")%>%
+  group_by(subject, condition, IA_LABEL)%>%
+  summarise(mean_dwell=mean(IA_DWELL_TIME))
+
+ggplot(data = test.IP.end.data, aes(x=condition, y=mean_dwell))+
+  geom_boxplot(alpha=0.5)+#, outlier.colour = "white")+
+  facet_wrap(~IA_LABEL)+
+  ylab("Dwell time")+xlab("Condition")+
+  theme_bw()+
+  stat_compare_means(paired = TRUE, method = "t.test", label.y = 1500 )
+```
+
+```{r}
+test.IP.end.IA.endpos <- end.ip.data %>%
+  filter(condition!="hab", IA_LABEL=="IA_end_position")%>%
+  group_by(subject, condition)%>%
+  summarise(mean_dwell=mean(IA_DWELL_TIME))
+
+
+t.test(test.IP.end.IA.endpos$mean_dwell[test.IP.end.IA.endpos$condition=="exp"], test.IP.end.IA.endpos$mean_dwell[test.IP.end.IA.endpos$condition=="con"], paired=TRUE)
+```
+
+
+```{r}
+#first test trial
+test.IP.end.IA.endpos.trial1 <- end.ip.data %>%
+  filter(condition!="hab", IA_LABEL=="IA_end_position", trial==4)
+
+
+t.test(test.IP.end.IA.endpos.trial1$IA_DWELL_TIME[test.IP.end.IA.endpos.trial1$condition=="exp"], test.IP.end.IA.endpos.trial1$IA_DWELL_TIME[test.IP.end.IA.endpos.trial1$condition=="con"], paired=TRUE)
+
+#second test trial
+test.IP.end.IA.endpos.trial2 <- end.ip.data %>%
+  filter(condition!="hab", IA_LABEL=="IA_end_position", trial==5)
+
+
+t.test(test.IP.end.IA.endpos.trial2$IA_DWELL_TIME[test.IP.end.IA.endpos.trial1$condition=="exp"], test.IP.end.IA.endpos.trial2$IA_DWELL_TIME[test.IP.end.IA.endpos.trial1$condition=="con"], paired=TRUE)
+
+
+```
+
+
+### Onscreen Dwell time (while videos is playing)
+
+```{r}
+video_playing_data<-read.delim("data/ET_VoE_occlusion2screens_IA_report_whole_screen_video_playing_IP.txt",na=".", sep = "\t")%>%
+  select(Session_Name_, IP_LABEL, IA_LABEL,IA_ID, Trial_Index_, condition, phase, session,  video_file, video_id, video_latency, DATA_FILE,  IA_AREA, IA_AVERAGE_FIX_PUPIL_SIZE,  IA_DWELL_TIME, "IA_DWELL_TIME", IA_FIXATION_COUNT, IA_MAX_FIX_PUPIL_SIZE, INTEREST_AREA_FIXATION_SEQUENCE, TRIAL_DWELL_TIME, TRIAL_FIXATION_COUNT, TRIAL_IA_COUNT, TRIAL_TOTAL_VISITED_IA_COUNT )%>%
+   filter(!(DATA_FILE=="Ace_2.edf" & Trial_Index_!=4))%>%
+  mutate(trial=ifelse(DATA_FILE=="Ace_2.edf" & Trial_Index_==4, 5, Trial_Index_))%>% #recoding of trial number to account for a dog that did not complete his first session, session was repeated with this dog
+  mutate(Session_Name_=fct_recode(Session_Name_, Georgia_1="Georgia1",Georgia_2="Georgia2", Cheynna_1="Cheynna1", Cheynna_2="Cheynna2" ))%>%
+  separate(Session_Name_, c("subject", "session.num"), sep = "_") %>%
+  mutate(condition_trial=paste(condition, "_", trial))%>%
+  full_join(demo.data)
+ # rename(trial="Trial_Index_")
+  
+
+#checks:
+view(dfSummary(video_playing_data))
+
+
+on_screen_data<-video_playing_data%>%
+  filter(IA_LABEL=="screen_aoi")%>%
+  mutate(prop_looking=IA_DWELL_TIME/5000)
+
+
+on_screen_data%>%group_by(condition)%>%
+  summarise(mean=mean(prop_looking, na.rm = TRUE), median=median(prop_looking, na.rm = TRUE), se=sd(prop_looking, na.rm = TRUE)/sqrt(length(prop_looking)), min=min(prop_looking, na.rm = TRUE), max=max(prop_looking, na.rm = TRUE))
+
+```
+
+onscreen dwell-time: comparison between first and last familiarisation trial.
+```{r}
+library(broom)
+on_screen_data%>%filter(phase=="hab1" | phase=="hab3")%>%
+  group_by(subject, phase)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()%>%
+  summarise(ttest = list(t.test(mean ~ phase, paired=TRUE)))%>%
+  mutate(ttest = map(ttest, tidy)) %>%
+  unnest()
+```
+
+
+onscreen dwell-time: comparison between test trials
+* first test trial
+```{r}
+on_screen_data%>%filter(condition!="hab", trial==4)%>%
+  group_by(subject, condition)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()%>%
+  summarise(ttest = list(t.test(mean ~ condition, paired=TRUE)))%>%
+  mutate(ttest = map(ttest, tidy)) %>%
+  unnest()
+```
+
+* second test trial
+```{r}
+on_screen_data%>%filter(condition!="hab", trial==5)%>%
+  group_by(subject, condition)%>%
+  summarise(mean=mean(prop_looking, na.rm=TRUE))%>%
+  ungroup()%>%
+  summarise(ttest = list(t.test(mean ~ condition, paired=TRUE)))%>%
+  mutate(ttest = map(ttest, tidy)) %>%
+  unnest()
+```
+
+Plot onscreen dwell time in test trials
+```{r}
+xx<-on_screen_data%>%filter(condition!="hab")%>%
+  group_by(subject, condition)%>%
+  summarise(mean=mean(prop_looking))%>%
+  ungroup()
+
+ggplot(data=xx, aes(x=condition, y=mean))+
+  geom_boxplot()
+```
