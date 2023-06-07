@@ -19,7 +19,7 @@ source("./functions/diagnostic_fcns.r")
 source("./functions/ci_glm.r")
 
 
-#load("voe_exploration_analysis.RData")
+load("voe_exploration_analysis.RData")
 
 ```
 
@@ -195,6 +195,25 @@ ggsave(p.demo , filename = "graphics/occlusion_demo_phase_looking_times.png", wi
 ```{r}
 occlusion.exploration<-read.csv("data/voe_exploration_exp3_exploration_data.csv")
 ```
+
+## aggregated data
+
+```{r}
+
+occlusion.exploration.agg <- occlusion.exploration %>%
+  group_by(condition) %>%
+  summarise(
+    mean_prop_looking_target_phase = mean(prop_looking_target_phase),
+    median_prop_looking_target_phase = median(prop_looking_target_phase),
+    se_prop_looking_target_phase = sd(prop_looking_target_phase) / sqrt(length(prop_looking_target_phase)),
+    mean_target=mean(exploration_time_target) ,
+    median_target=median(exploration_time_target),
+    se_target = sd(exploration_time_target) / sqrt(length(exploration_time_target))
+    
+  )
+
+```
+
 
 ### data preparation
 ```{r}
